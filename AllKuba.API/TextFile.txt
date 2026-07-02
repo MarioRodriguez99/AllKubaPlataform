@@ -1,5 +1,0 @@
-﻿dotnet publish "D:\AllKubaPlataform\AllKuba.UI" -f net10.0-windows10.0.19041.0 -c Release -r win-x64 --self-contained true -o "D:\AllKubaPlataform\publish"
-
-dotnet publish "D:\AllKubaPlataform\AllKuba.API" -c Release -r win-x64 --self-contained true -o "D:\AllKubaPlataform\publish"
-
-
