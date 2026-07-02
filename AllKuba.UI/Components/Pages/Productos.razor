@@ -1,0 +1,582 @@
+@page "/productos"
+@inject ApiService Api
+
+<div class="tabs">
+    <button class="@TabClass("productos")" @onclick="MostrarProductos">📦 Productos</button>
+    <button class="@TabClass("tipos")" @onclick="MostrarTipos">🏷️ Tipos de Producto</button>
+</div>
+
+@if (TabActivo == "productos")
+{
+    <div class="page-header" style="margin-top:1rem">
+        <h2>Productos</h2>
+        <button class="btn btn-primary" @onclick="NuevoProducto">+ Nuevo producto</button>
+    </div>
+
+    <div class="panel-dos-columnas">
+        <div>
+            @if (!ListaProductos.Any())
+            {
+                <p class="text-muted" style="padding:2rem;text-align:center">Sin productos aún</p>
+            }
+            else
+            {
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>P. Base</th>
+                            <th>Costo</th>
+                            <th>P. Venta</th>
+                            <th>Medidas</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in ListaProductos)
+                        {
+                            var prod = p;
+                            <tr>
+                                <td>
+                                    <strong>@prod.Nombre</strong>
+                                    @if (!string.IsNullOrEmpty(prod.Descripcion))
+                                    {
+                                        <br /><span style="font-size:11px;color:#888">@prod.Descripcion</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(prod.TipoProductoNombre))
+                                    {
+                                        <span class="badge" style="background:#ede9fe;color:#6d28d9">@prod.TipoProductoNombre</span>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>$ @prod.PrecioBase.ToString("F2")</td>
+                                <td style="color:#ef4444">$ @prod.PrecioCosto.ToString("F2")</td>
+                                <td style="color:#10b981;font-weight:600">$ @prod.PrecioVenta.ToString("F2")</td>
+                                <td>
+                                    @if (prod.TieneMedidas)
+                                    {
+                                        <span>@prod.AnchoEstandar m × @prod.AltoEstandar m</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Sin medidas</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="acciones">
+                                        <button class="btn btn-sm" @onclick="() => EditarProducto(prod)">Editar</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarProducto(prod.Id)">✕</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="card">
+            <h3>@(EditProductoId.HasValue ? "Editar" : "Nuevo") producto</h3>
+
+            <div class="form-group">
+                <label>Tipo de producto</label>
+                <select @bind="ProductoTipoId" @bind:after="AplicarTipo">
+                    <option value="0">Sin tipo (personalizado)</option>
+                    @foreach (var t in ListaTipos)
+                    {
+                        <option value="@t.Id">@t.Nombre</option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Nombre *</label>
+                <input @bind="ProductoNombre" placeholder="Ej: Puerta Cristal Estándar" />
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input @bind="ProductoDescripcion" placeholder="Descripción opcional" />
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" @bind="ProductoTieneMedidas" />
+                    Este producto tiene medidas (ancho × alto)
+                </label>
+            </div>
+
+            @if (ProductoTieneMedidas)
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Precio base (USD)</label>
+                        <input type="number" step="0.01" @bind="ProductoPrecioBase" />
+                    </div>
+                    <div class="form-group">
+                        <label>Ancho estándar (m)</label>
+                        <input type="number" step="0.01" @bind="ProductoAncho" />
+                    </div>
+                    <div class="form-group">
+                        <label>Alto estándar (m)</label>
+                        <input type="number" step="0.01" @bind="ProductoAlto" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Cálculo si supera el estándar</label>
+                    <select @bind="ProductoTipoCalculo">
+                        <option value="ninguno">Precio fijo</option>
+                        <option value="m2">Por m²</option>
+                        <option value="ml">Por metro lineal</option>
+                    </select>
+                </div>
+
+                @if (ProductoTipoCalculo != "ninguno")
+                {
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio venta / @ProductoTipoCalculo</label>
+                            <input type="number" step="0.01" @bind="ProductoPrecioExceso" />
+                        </div>
+                        <div class="form-group">
+                            <label>Costo / @ProductoTipoCalculo</label>
+                            <input type="number" step="0.01" @bind="ProductoPrecioCostoExceso" />
+                        </div>
+                    </div>
+                }
+            }
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Costo (USD)</label>
+                    <input type="number" step="0.01" @bind="ProductoPrecioCosto" />
+                </div>
+                <div class="form-group">
+                    <label>Precio venta (USD)</label>
+                    <input type="number" step="0.01" @bind="ProductoPrecioVenta" />
+                </div>
+            </div>
+
+            @if (ProductoPrecioVenta > 0 && ProductoPrecioCosto > 0)
+            {
+                var margen = ((ProductoPrecioVenta - ProductoPrecioCosto) / ProductoPrecioVenta) * 100;
+                <div class="precio-preview" style="margin-bottom:1rem">
+                    <span>Margen: <strong>@margen.ToString("F1")%</strong> — Ganancia: <strong>$ @((ProductoPrecioVenta - ProductoPrecioCosto).ToString("F2"))</strong></span>
+                </div>
+            }
+
+            <div class="acciones" style="margin-top:1rem">
+                <button class="btn" @onclick="LimpiarProducto">Cancelar</button>
+                <button class="btn btn-primary" @onclick="GuardarProducto">Guardar</button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="page-header" style="margin-top:1rem">
+        <h2>Tipos de Producto</h2>
+        <button class="btn btn-primary" @onclick="NuevoTipo">+ Nuevo tipo</button>
+    </div>
+
+    <div class="panel-dos-columnas">
+        <div>
+            @if (!ListaTipos.Any())
+            {
+                <p class="text-muted" style="padding:2rem;text-align:center">Sin tipos aún</p>
+            }
+            else
+            {
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Medidas</th>
+                            <th>Cálculo</th>
+                            <th>Variantes</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in ListaTipos)
+                        {
+                            var tipo = t;
+                            <tr>
+                                <td>
+                                    <strong>@tipo.Nombre</strong>
+                                    @if (!string.IsNullOrEmpty(tipo.Descripcion))
+                                    {
+                                        <br /><span style="font-size:11px;color:#888">@tipo.Descripcion</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (tipo.TieneMedidas)
+                                    {
+                                        <span>@tipo.AnchoEstandar m × @tipo.AltoEstandar m</span>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="text-muted">Sin medidas</span>
+                                    }
+                                </td>
+                                <td>@tipo.TipoCalculoLabel</td>
+                                <td style="font-size:12px">
+                                    @(tipo.Variantes.Any() ? string.Join(", ", tipo.Variantes.Select(v => v.Tipo)) : "—")
+                                </td>
+                                <td>
+                                    <div class="acciones">
+                                        <button class="btn btn-sm" @onclick="() => EditarTipo(tipo)">Editar</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarTipo(tipo.Id)">✕</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="card">
+            <h3>@(EditTipoId.HasValue ? "Editar" : "Nuevo") tipo</h3>
+
+            <div class="form-group">
+                <label>Nombre *</label>
+                <input @bind="TipoNombre" placeholder="Ej: Puerta, Ventana, Motor..." />
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input @bind="TipoDescripcion" placeholder="Descripción opcional" />
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" @bind="TipoTieneMedidas" />
+                    Este tipo tiene medidas (ancho × alto)
+                </label>
+            </div>
+
+            @if (TipoTieneMedidas)
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ancho estándar (m)</label>
+                        <input type="number" step="0.01" @bind="TipoAncho" />
+                    </div>
+                    <div class="form-group">
+                        <label>Alto estándar (m)</label>
+                        <input type="number" step="0.01" @bind="TipoAlto" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de cálculo</label>
+                    <select @bind="TipoCalculo">
+                        <option value="ninguno">Precio fijo</option>
+                        <option value="m2">Por m²</option>
+                        <option value="ml">Por metro lineal</option>
+                    </select>
+                </div>
+
+                @if (TipoCalculo != "ninguno")
+                {
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio venta / @TipoCalculo</label>
+                            <input type="number" step="0.01" @bind="TipoPrecioExceso" />
+                        </div>
+                        <div class="form-group">
+                            <label>Costo / @TipoCalculo</label>
+                            <input type="number" step="0.01" @bind="TipoPrecioCostoExceso" />
+                        </div>
+                    </div>
+                }
+            }
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Precio base (USD)</label>
+                    <input type="number" step="0.01" @bind="TipoPrecioBase" />
+                </div>
+                <div class="form-group">
+                    <label>Costo base (USD)</label>
+                    <input type="number" step="0.01" @bind="TipoPrecioCosto" />
+                </div>
+                <div class="form-group">
+                    <label>Precio venta sugerido</label>
+                    <input type="number" step="0.01" @bind="TipoPrecioVenta" />
+                </div>
+            </div>
+
+            <!-- Variantes del tipo -->
+            <div style="margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:1rem">
+                <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:8px">
+                    VARIANTES DEL TIPO
+                </label>
+
+                @foreach (var v in TipoVariantes)
+                {
+                    var varDef = v;
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-bottom:8px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                            <strong style="font-size:13px">@varDef.Tipo</strong>
+                            <button class="btn btn-sm btn-danger" @onclick="() => TipoVariantes.Remove(varDef)">✕</button>
+                        </div>
+                        @foreach (var op in varDef.Opciones)
+                        {
+                            var opcion = op;
+                            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;font-size:12px">
+                                <span style="flex:1;color:#555">@opcion.Nombre</span>
+                                @if (opcion.PrecioExtra > 0)
+                                {
+                                    <span style="color:#10b981">+$ @opcion.PrecioExtra.ToString("F2")</span>
+                                }
+                                else
+                                {
+                                    <span style="color:#94a3b8">Sin costo extra</span>
+                                }
+                                <button class="btn btn-sm btn-danger" style="padding:2px 6px" @onclick="() => varDef.Opciones.Remove(opcion)">✕</button>
+                            </div>
+                        }
+                        <!-- Agregar opción -->
+                        <div style="display:flex;gap:6px;margin-top:6px">
+                            <input style="flex:2" placeholder="Nueva opción" @bind="NuevaOpcionNombre" />
+                            <input type="number" style="flex:1" step="0.01" placeholder="$ extra (opcional)" @bind="NuevaOpcionPrecio" />
+                            <button class="btn btn-sm" @onclick="() => AgregarOpcion(varDef)">+</button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Agregar variante -->
+                <div style="display:flex;gap:6px;margin-top:6px">
+                    <input placeholder="Nueva variante (ej: Tipo de cristal)" @bind="NuevaVarianteTipo" style="flex:1" />
+                    <button class="btn btn-sm btn-success" @onclick="AgregarVariante">+ Variante</button>
+                </div>
+            </div>
+
+            <div class="acciones" style="margin-top:1rem">
+                <button class="btn" @onclick="LimpiarTipo">Cancelar</button>
+                <button class="btn btn-primary" @onclick="GuardarTipo">Guardar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    string TabActivo = "productos";
+    List<Producto> ListaProductos = [];
+    List<TipoProducto> ListaTipos = [];
+
+    string TabClass(string tab) => $"tab {(TabActivo == tab ? "active" : "")}";
+    void MostrarProductos() => TabActivo = "productos";
+    void MostrarTipos() => TabActivo = "tipos";
+
+    // ── Producto form ─────────────────────────────────────────
+    int? EditProductoId;
+    int ProductoTipoId = 0;
+    string ProductoNombre = "", ProductoDescripcion = "", ProductoTipoCalculo = "ninguno";
+    bool ProductoTieneMedidas = true;
+    decimal ProductoPrecioBase, ProductoAncho, ProductoAlto, ProductoPrecioExceso;
+    decimal ProductoPrecioCosto, ProductoPrecioCostoExceso, ProductoPrecioVenta;
+    List<VarianteDefinicion> ListaVariantes = [];
+
+    // ── Tipo form ─────────────────────────────────────────────
+    int? EditTipoId;
+    string TipoNombre = "", TipoDescripcion = "", TipoCalculo = "m2";
+    bool TipoTieneMedidas = true;
+    decimal TipoPrecioBase, TipoAncho = 0.70m, TipoAlto = 2.15m;
+    decimal TipoPrecioExceso, TipoPrecioCosto, TipoPrecioCostoExceso, TipoPrecioVenta;
+    List<VarianteDefinicion> TipoVariantes = [];
+    string NuevaVarianteTipo = "";
+    string NuevaOpcionNombre = "";
+    decimal NuevaOpcionPrecio = 0;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    async Task Cargar()
+    {
+        ListaProductos = await Api.GetProductosAsync();
+        ListaTipos = await Api.GetTiposProductoAsync();
+    }
+
+    void AplicarTipo()
+    {
+        if (ProductoTipoId == 0) return;
+        var tipo = ListaTipos.FirstOrDefault(t => t.Id == ProductoTipoId);
+        if (tipo is null) return;
+
+        ProductoTieneMedidas = tipo.TieneMedidas;
+        ProductoPrecioBase = tipo.PrecioBase;
+        ProductoAncho = tipo.AnchoEstandar;
+        ProductoAlto = tipo.AltoEstandar;
+        ProductoTipoCalculo = tipo.TipoCalculo;
+        ProductoPrecioExceso = tipo.PrecioExceso;
+        ProductoPrecioCosto = tipo.PrecioCosto;
+        ProductoPrecioCostoExceso = tipo.PrecioCostoExceso;
+        ProductoPrecioVenta = tipo.PrecioVenta;
+        ListaVariantes = tipo.Variantes.Select(v => new VarianteDefinicion
+        {
+            Tipo = v.Tipo,
+            Opciones = v.Opciones.Select(o => new OpcionVariante
+            {
+                Nombre = o.Nombre,
+                PrecioExtra = o.PrecioExtra
+            }).ToList()
+        }).ToList();
+    }
+
+    void NuevoProducto() => LimpiarProducto();
+
+    void EditarProducto(Producto p)
+    {
+        EditProductoId = p.Id;
+        ProductoTipoId = p.TipoProductoId ?? 0;
+        ProductoNombre = p.Nombre;
+        ProductoDescripcion = p.Descripcion;
+        ProductoTieneMedidas = p.TieneMedidas;
+        ProductoPrecioBase = p.PrecioBase;
+        ProductoAncho = p.AnchoEstandar;
+        ProductoAlto = p.AltoEstandar;
+        ProductoTipoCalculo = p.TipoCalculo;
+        ProductoPrecioExceso = p.PrecioExceso;
+        ProductoPrecioCosto = p.PrecioCosto;
+        ProductoPrecioCostoExceso = p.PrecioCostoExceso;
+        ProductoPrecioVenta = p.PrecioVenta;
+    }
+
+    async Task GuardarProducto()
+    {
+        // Obtener variantes — si tiene tipo, usar las del tipo
+        var variantes = ListaVariantes;
+        if (ProductoTipoId != 0 && !variantes.Any())
+        {
+            var tipo = ListaTipos.FirstOrDefault(t => t.Id == ProductoTipoId);
+            if (tipo is not null)
+                variantes = tipo.Variantes;
+        }
+
+        var req = new CrearProductoRequest(
+            ProductoNombre, ProductoDescripcion,
+            ProductoTipoId == 0 ? null : ProductoTipoId,
+            ProductoTieneMedidas,
+            ProductoPrecioBase, ProductoAncho, ProductoAlto,
+            ProductoTipoCalculo,
+            ProductoTipoCalculo != "ninguno" ? ProductoPrecioExceso : 0,
+            ProductoPrecioCosto,
+            ProductoTipoCalculo != "ninguno" ? ProductoPrecioCostoExceso : 0,
+            ProductoPrecioVenta,
+            variantes); 
+
+        if (EditProductoId.HasValue)
+            await Api.EditarProductoAsync(EditProductoId.Value, req);
+        else
+            await Api.CrearProductoAsync(req);
+
+        LimpiarProducto();
+        await Cargar();
+    }
+
+    async Task EliminarProducto(int id)
+    {
+        await Api.EliminarProductoAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarProducto()
+    {
+        EditProductoId = null;
+        ProductoTipoId = 0;
+        ProductoNombre = ProductoDescripcion = "";
+        ProductoTipoCalculo = "ninguno";
+        ProductoTieneMedidas = true;
+        ProductoPrecioBase = ProductoAncho = ProductoAlto = ProductoPrecioExceso = 0;
+        ProductoPrecioCosto = ProductoPrecioCostoExceso = ProductoPrecioVenta = 0;
+        ListaVariantes.Clear(); 
+    }
+
+    // ── Tipos CRUD ────────────────────────────────────────────
+    void NuevoTipo() => LimpiarTipo();
+
+    void EditarTipo(TipoProducto t)
+    {
+        EditTipoId = t.Id;
+        TipoNombre = t.Nombre;
+        TipoDescripcion = t.Descripcion;
+        TipoTieneMedidas = t.TieneMedidas;
+        TipoPrecioBase = t.PrecioBase;
+        TipoAncho = t.AnchoEstandar;
+        TipoAlto = t.AltoEstandar;
+        TipoCalculo = t.TipoCalculo;
+        TipoPrecioExceso = t.PrecioExceso;
+        TipoPrecioCosto = t.PrecioCosto;
+        TipoPrecioCostoExceso = t.PrecioCostoExceso;
+        TipoPrecioVenta = t.PrecioVenta;
+        TipoVariantes = t.Variantes.Select(v => new VarianteDefinicion
+        {
+            Tipo = v.Tipo,
+            Opciones = v.Opciones.Select(o => new OpcionVariante { Nombre = o.Nombre, PrecioExtra = o.PrecioExtra }).ToList()
+        }).ToList();
+    }
+
+    void AgregarVariante()
+    {
+        if (string.IsNullOrWhiteSpace(NuevaVarianteTipo)) return;
+        TipoVariantes.Add(new VarianteDefinicion { Tipo = NuevaVarianteTipo, Opciones = [] });
+        NuevaVarianteTipo = "";
+    }
+
+    void AgregarOpcion(VarianteDefinicion v)
+    {
+        if (string.IsNullOrWhiteSpace(NuevaOpcionNombre)) return;
+        v.Opciones.Add(new OpcionVariante { Nombre = NuevaOpcionNombre, PrecioExtra = NuevaOpcionPrecio });
+        NuevaOpcionNombre = "";
+        NuevaOpcionPrecio = 0;
+    }
+
+    async Task GuardarTipo()
+    {
+        var req = new CrearTipoProductoRequest(
+            TipoNombre, TipoDescripcion, TipoTieneMedidas,
+            TipoPrecioBase, TipoAncho, TipoAlto,
+            TipoCalculo,
+            TipoCalculo != "ninguno" ? TipoPrecioExceso : 0,
+            TipoPrecioCosto,
+            TipoCalculo != "ninguno" ? TipoPrecioCostoExceso : 0,
+            TipoPrecioVenta,
+            TipoVariantes);
+
+        if (EditTipoId.HasValue)
+            await Api.EditarTipoProductoAsync(EditTipoId.Value, req);
+        else
+            await Api.CrearTipoProductoAsync(req);
+
+        LimpiarTipo();
+        await Cargar();
+    }
+
+    async Task EliminarTipo(int id)
+    {
+        await Api.EliminarTipoProductoAsync(id);
+        await Cargar();
+    }
+
+    void LimpiarTipo()
+    {
+        EditTipoId = null;
+        TipoNombre = TipoDescripcion = NuevaVarianteTipo = NuevaOpcionNombre = "";
+        TipoCalculo = "m2";
+        TipoTieneMedidas = true;
+        TipoPrecioBase = TipoPrecioExceso = TipoPrecioCosto = TipoPrecioCostoExceso = TipoPrecioVenta = 0;
+        TipoAncho = 0.70m;
+        TipoAlto = 2.15m;
+        TipoVariantes.Clear();
+        NuevaOpcionPrecio = 0;
+    }
+}

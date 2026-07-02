@@ -1,0 +1,17 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# Base de datos local
+*.db
+*.db-shm
+*.db-wal
+
+# VS
+.vs/
+*.user
+*.suo
+
+# Logs
+*.log*.zip

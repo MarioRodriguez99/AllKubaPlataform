@@ -1,0 +1,34 @@
+@using AllKuba.UI.Services
+@using AllKuba.UI.Components.Layout
+@using AllKuba.UI.Components.Pages
+@inject AppState State
+@implements IDisposable
+
+@if (!State.ApiLista)
+{
+    <SplashPage />
+}
+else
+{
+    <Router AppAssembly="@typeof(Routes).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p>Página no encontrada.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+
+@code {
+    protected override void OnInitialized() =>
+        State.OnChange += OnStateChange;
+
+    private void OnStateChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() =>
+        State.OnChange -= OnStateChange;
+}

@@ -1,0 +1,45 @@
+﻿@inject AppState State
+@inject NavigationManager Nav
+@implements IDisposable
+
+<div class="splash-container">
+    <div class="splash-content">
+        <img src="images/logo.png" alt="AllKuba" class="splash-logo"
+             onerror="this.style.display='none'" />
+        <h1 class="splash-title">AllKuba</h1>
+        <p class="splash-subtitle">Sistema de Gestión de Ventas</p>
+
+        <div class="splash-loader">
+            <div class="loader-bar">
+                <div class="loader-progress @(State.ApiLista ? "completo" : "")"></div>
+            </div>
+            <p class="splash-mensaje">@State.Mensaje</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.OnChange += OnStateChange;
+
+        // Si ya estaba lista (debug), navegar directo
+        if (State.ApiLista)
+            Nav.NavigateTo("/ventas");
+    }
+
+    private void OnStateChange()
+    {
+        InvokeAsync(() =>
+        {
+            StateHasChanged();
+            if (State.ApiLista)
+                Nav.NavigateTo("/ventas");
+        });
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= OnStateChange;
+    }
+}

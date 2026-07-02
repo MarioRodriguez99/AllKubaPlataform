@@ -1,0 +1,117 @@
+@page "/"
+@page "/ventas"
+@inject ApiService Api
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <h2>Ventas / Presupuestos</h2>
+    <button class="btn btn-primary" @onclick="NuevaVenta">+ Nueva venta</button>
+</div>
+
+<div class="filtros">
+    @foreach (var (key, label) in Estados)
+    {
+        var k = key;
+        <button class="@ClaseFiltro(k)" @onclick="() => Filtrar(k)">
+            @label
+        </button>
+    }
+</div>
+
+@if (Cargando)
+{
+    <p class="text-muted">Cargando...</p>
+}
+else if (!ListaVentas.Any())
+{
+    <p class="text-muted" style="padding:2rem;text-align:center">Sin ventas aún</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Cliente</th>
+                <th>Estado</th>
+                <th>Total (USD)</th>
+                <th>Fecha</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var v in ListaVentas)
+            {
+                var venta = v;
+                <tr>
+                    <td><strong>@venta.Numero</strong></td>
+                    <td>@venta.Cliente.Nombre</td>
+                    <td><span class="badge badge-@venta.Estado">@venta.EstadoLabel</span></td>
+                    <td><strong>$ @venta.Total.ToString("F2")</strong></td>
+                    <td>@venta.FechaDisplay</td>
+                    <td>
+                        <div class="acciones">
+                            <button class="btn btn-sm" @onclick="() => VerDetalle(venta.Id)">Ver</button>
+                            <select class="btn btn-sm" @onchange="e => CambiarEstado(venta.Id, e.Value!.ToString()!)">
+                                @foreach (var (key, label) in Estados.Skip(1))
+                                {
+                                    <option value="@key" selected="@(venta.Estado == key)">@label</option>
+                                }
+                            </select>
+                            <button class="btn btn-sm btn-danger" @onclick="() => Eliminar(venta.Id)">✕</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<Venta> ListaVentas = [];
+    bool Cargando = true;
+    string FiltroEstado = "";
+
+    static readonly Dictionary<string, string> Estados = new()
+    {
+        { "",               "Todos" },
+        { "pendiente",      "Pendiente" },
+        { "aprobado",       "Aprobado" },
+        { "en_produccion",  "En producción" },
+        { "entregado",      "Entregado" },
+        { "cancelado",      "Cancelado" }
+    };
+
+    string ClaseFiltro(string key) =>
+        FiltroEstado == key ? "btn btn-sm btn-primary" : "btn btn-sm";
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    void NuevaVenta() => Nav.NavigateTo("/ventas/nueva");
+    void VerDetalle(int id) => Nav.NavigateTo($"/ventas/{id}");
+
+    async Task Cargar()
+    {
+        Cargando = true;
+        ListaVentas = await Api.GetVentasAsync(string.IsNullOrEmpty(FiltroEstado) ? null : FiltroEstado);
+        Cargando = false;
+    }
+
+    async Task Filtrar(string estado)
+    {
+        FiltroEstado = estado;
+        await Cargar();
+    }
+
+    async Task CambiarEstado(int id, string estado)
+    {
+        await Api.CambiarEstadoAsync(id, estado);
+        await Cargar();
+    }
+
+    async Task Eliminar(int id)
+    {
+        await Api.EliminarVentaAsync(id);
+        await Cargar();
+    }
+}

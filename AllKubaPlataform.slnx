@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AllKuba.API/AllKuba.API.csproj" Id="6313ef85-752d-4561-b75b-d389a59f5388" />
+  <Project Path="AllKuba.UI/AllKuba.UI.csproj" Id="aa30ee4a-61cf-46b3-b5f9-6479e7600eaa" />
+</Solution>

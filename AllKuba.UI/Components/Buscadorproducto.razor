@@ -1,0 +1,115 @@
+﻿@* Componente buscador de productos *@
+@if (Abierto)
+{
+    <div style="position:relative">
+        <input @ref="InputRef"
+               @bind="Busqueda"
+               @bind:event="oninput"
+               @onkeydown="OnKeyDown"
+               placeholder="Buscar producto..."
+               style="width:100%;padding:8px 11px;border:1px solid #4f46e5;border-radius:6px;font-size:13px" />
+
+        @if (ResultadosFiltrados.Any())
+        {
+            <div style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:100;max-height:250px;overflow-y:auto">
+                @foreach (var p in ResultadosFiltrados)
+                {
+                    var prod = p;
+                    <div style="@EstiloItem(prod.Id)"
+                         @onclick="() => Seleccionar(prod)"
+                         @onmouseenter="() => ItemHover = prod.Id"
+                         @onmouseleave="() => ItemHover = 0">
+                        <strong>@prod.Nombre</strong>
+                        @if (!string.IsNullOrEmpty(prod.TipoProductoNombre))
+                        {
+                            <span style="margin-left:6px;font-size:11px;background:#ede9fe;color:#6d28d9;padding:1px 6px;border-radius:10px">@prod.TipoProductoNombre</span>
+                        }
+                        @if (!string.IsNullOrEmpty(prod.Descripcion))
+                        {
+                            <br /><span style="font-size:11px;color:#888">@prod.Descripcion</span>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(Busqueda))
+        {
+            <div style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:12px;font-size:13px;color:#888">
+                Sin resultados
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div style="display:flex;gap:8px;align-items:center">
+        <div style="flex:1;padding:8px 11px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;background:#fff;cursor:pointer"
+             @onclick="Abrir">
+            @if (ProductoSeleccionado is not null)
+            {
+                <span>
+                    <strong>@ProductoSeleccionado.Nombre</strong>
+                    @if (!string.IsNullOrEmpty(ProductoSeleccionado.TipoProductoNombre))
+                    {
+                        <span style="margin-left:6px;font-size:11px;background:#ede9fe;color:#6d28d9;padding:1px 6px;border-radius:10px">@ProductoSeleccionado.TipoProductoNombre</span>
+                    }
+                </span>
+            }
+            else
+            {
+                <span style="color:#9ca3af">Seleccionar producto...</span>
+            }
+        </div>
+        @if (ProductoSeleccionado is not null)
+        {
+            <button class="btn btn-sm" @onclick="Limpiar">✕</button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public List<Producto> Productos { get; set; } = [];
+    [Parameter] public Producto? ProductoSeleccionado { get; set; }
+    [Parameter] public EventCallback<Producto?> ProductoSeleccionadoChanged { get; set; }
+
+    bool Abierto = false;
+    string Busqueda = "";
+    int ItemHover = 0;
+    ElementReference InputRef;
+
+    string EstiloItem(int id) =>
+        $"padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:13px;background:{(ItemHover == id ? "#f8fafc" : "#fff")}";
+
+    List<Producto> ResultadosFiltrados => string.IsNullOrWhiteSpace(Busqueda)
+        ? Productos.Take(8).ToList()
+        : Productos.Where(p =>
+            p.Nombre.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ||
+            (p.TipoProductoNombre?.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.Descripcion?.Contains(Busqueda, StringComparison.OrdinalIgnoreCase) ?? false))
+          .Take(8).ToList();
+
+    async Task Abrir()
+    {
+        Abierto = true;
+        Busqueda = "";
+        await Task.Delay(50);
+        await InputRef.FocusAsync();
+    }
+
+    async Task Seleccionar(Producto p)
+    {
+        Abierto = false;
+        Busqueda = "";
+        await ProductoSeleccionadoChanged.InvokeAsync(p);
+    }
+
+    async Task Limpiar()
+    {
+        await ProductoSeleccionadoChanged.InvokeAsync(null);
+    }
+
+    void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Abierto = false;
+    }
+}

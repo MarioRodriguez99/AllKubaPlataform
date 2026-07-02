@@ -1,0 +1,161 @@
+﻿@page "/dashboard"
+@inject ApiService Api
+
+<div class="page-header">
+    <h2>📊 Dashboard</h2>
+</div>
+
+@if (Cargando)
+{
+    <p class="text-muted">Cargando estadísticas...</p>
+}
+else if (Data is not null)
+{
+    <!-- Tarjetas resumen -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#ede9fe">📋</div>
+            <div class="stat-info">
+                <span class="stat-label">Total ventas</span>
+                <span class="stat-value">@Data.TotalVentas</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dcfce7">✅</div>
+            <div class="stat-info">
+                <span class="stat-label">Entregadas</span>
+                <span class="stat-value">@Data.VentasEntregadas</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef9c3">⏳</div>
+            <div class="stat-info">
+                <span class="stat-label">Pendientes</span>
+                <span class="stat-value">@Data.VentasPendientes</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dbeafe">🔧</div>
+            <div class="stat-info">
+                <span class="stat-label">En producción</span>
+                <span class="stat-value">@Data.VentasEnProduccion</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financiero -->
+    <div class="stats-grid" style="margin-top:1rem">
+        <div class="stat-card financiero">
+            <div class="stat-info">
+                <span class="stat-label">Ingresos totales</span>
+                <span class="stat-value verde">$ @Data.IngresoTotal.ToString("N2")</span>
+            </div>
+        </div>
+        <div class="stat-card financiero">
+            <div class="stat-info">
+                <span class="stat-label">Costos totales</span>
+                <span class="stat-value rojo">$ @Data.CostoTotal.ToString("N2")</span>
+            </div>
+        </div>
+        <div class="stat-card financiero">
+            <div class="stat-info">
+                <span class="stat-label">Ganancia total</span>
+                <span class="stat-value @(Data.GananciaTotal >= 0 ? "verde" : "rojo")">
+                    $ @Data.GananciaTotal.ToString("N2")
+                </span>
+            </div>
+        </div>
+        <div class="stat-card financiero">
+            <div class="stat-info">
+                <span class="stat-label">Margen promedio</span>
+                <span class="stat-value @(Data.MargenPromedio >= 0 ? "verde" : "rojo")">
+                    @Data.MargenPromedio.ToString("F1")%
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-dos-columnas" style="margin-top:1.5rem">
+
+        <!-- Ventas por mes -->
+        <div class="card">
+            <h3>Ventas por mes</h3>
+            @if (!Data.VentasPorMes.Any())
+            {
+                <p class="text-muted">Sin datos aún</p>
+            }
+            else
+            {
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mes</th>
+                            <th style="text-align:right">Ingresos</th>
+                            <th style="text-align:right">Costos</th>
+                            <th style="text-align:right">Ganancia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in Data.VentasPorMes)
+                        {
+                            <tr>
+                                <td>@m.Mes</td>
+                                <td style="text-align:right">$ @m.Ingresos.ToString("N2")</td>
+                                <td style="text-align:right;color:#ef4444">$ @m.Costos.ToString("N2")</td>
+                                <td style="text-align:right;font-weight:700;color:@(m.Ganancia >= 0 ? "#10b981" : "#ef4444")">
+                                    $ @m.Ganancia.ToString("N2")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <!-- Productos top -->
+        <div class="card">
+            <h3>Productos más vendidos</h3>
+            @if (!Data.ProductosTop.Any())
+            {
+                <p class="text-muted">Sin datos aún</p>
+            }
+            else
+            {
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th style="text-align:right">Cant.</th>
+                            <th style="text-align:right">Ingresos</th>
+                            <th style="text-align:right">Ganancia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Data.ProductosTop)
+                        {
+                            <tr>
+                                <td><strong>@p.Nombre</strong></td>
+                                <td style="text-align:right">@p.Cantidad</td>
+                                <td style="text-align:right">$ @p.Ingresos.ToString("N2")</td>
+                                <td style="text-align:right;font-weight:700;color:@(p.Ganancia >= 0 ? "#10b981" : "#ef4444")">
+                                    $ @p.Ganancia.ToString("N2")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    DashboardDto? Data;
+    bool Cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Data = await Api.GetDashboardAsync();
+        Cargando = false;
+    }
+}

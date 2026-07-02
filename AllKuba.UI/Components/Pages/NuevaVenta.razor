@@ -1,0 +1,302 @@
+@page "/ventas/nueva"
+@inject ApiService Api
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <h2>Nueva venta / presupuesto</h2>
+    <button class="btn" @onclick="Volver">← Volver</button>
+</div>
+
+<div class="card">
+    <div class="form-row">
+        <div class="form-group">
+            <label>Cliente *</label>
+            <select @bind="ClienteId">
+                <option value="0">Seleccionar cliente...</option>
+                @foreach (var c in ListaClientes)
+                {
+                    <option value="@c.Id">@c.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Observaciones</label>
+            <input @bind="Observaciones" placeholder="Notas generales del presupuesto" />
+        </div>
+    </div>
+</div>
+
+<div class="panel-dos-columnas">
+
+    <div class="card">
+        <h3>Agregar producto a la ficha</h3>
+
+        <div class="form-group">
+            <label>Producto *</label>
+            <Buscadorproducto
+                Productos="ListaProductos"
+                ProductoSeleccionado="@ProductoActual"
+                ProductoSeleccionadoChanged="OnProductoSeleccionado" />
+        </div>
+
+        @if (ProductoActual?.TieneMedidas == true)
+        {
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Ancho (m) *</label>
+                    <input type="number" step="0.01" @bind="LineaAncho" @bind:after="RecalcularAsync" placeholder="0.00" />
+                </div>
+                <div class="form-group">
+                    <label>Alto (m) *</label>
+                    <input type="number" step="0.01" @bind="LineaAlto" @bind:after="RecalcularAsync" placeholder="0.00" />
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" min="1" @bind="LineaCantidad" @bind:after="RecalcularAsync" />
+                </div>
+            </div>
+        }
+        else if (ProductoActual is not null)
+        {
+            <div class="form-group">
+                <label>Cantidad</label>
+                <input type="number" min="1" @bind="LineaCantidad" @bind:after="RecalcularAsync" />
+            </div>
+        }
+
+        @if (VariantesLinea.Any())
+        {
+            <div style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:4px">
+                <p style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">OPCIONES DEL PRODUCTO</p>
+                @foreach (var v in VariantesLinea)
+                {
+                    var variante = v;
+                    <div class="form-group">
+                        <label>@variante.Tipo</label>
+                        <select @bind="variante.Seleccion" @bind:after="RecalcularAsync">
+                            <option value="">Sin especificar</option>
+                            @foreach (var op in variante.Opciones)
+                            {
+                                <option value="@op.Nombre">
+                                    @op.Nombre @(op.PrecioExtra > 0 ? $"(+$ {op.PrecioExtra:F2})" : "")
+                                </option>
+                            }
+                        </select>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="form-group">
+            <label>Notas de esta línea</label>
+            <input @bind="LineaNotas" placeholder="Ej: con instalación incluida" />
+        </div>
+
+        @if (Preview is not null)
+        {
+            <div class="precio-preview">
+                <span>@Preview.Detalle</span>
+                <div>
+                    <span>Unitario: <strong>$ @Preview.PrecioUnitario.ToString("F2")</strong></span>
+                    <span style="margin-left:1rem">Subtotal: <strong>$ @Preview.Subtotal.ToString("F2")</strong></span>
+                </div>
+            </div>
+        }
+
+        <button class="btn btn-success" @onclick="AgregarLinea" disabled="@(Preview is null)">
+            + Agregar a la ficha
+        </button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+        @if (Lineas.Any())
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th>Medidas</th>
+                        <th>Cant.</th>
+                        <th>Opciones</th>
+                        <th>Notas</th>
+                        <th style="text-align:right">Unitario</th>
+                        <th style="text-align:right">Subtotal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Lineas.Count; i++)
+                    {
+                        var linea = Lineas[i];
+                        var idx = i;
+                        <tr>
+                            <td>@(idx + 1)</td>
+                            <td><strong>@linea.NombreProducto</strong></td>
+                            <td>@linea.MedidasDisplay</td>
+                            <td>@linea.Cantidad</td>
+                            <td style="font-size:12px">@linea.VariantesDisplay</td>
+                            <td style="font-size:12px;color:#666">@(string.IsNullOrEmpty(linea.Notas) ? "—" : linea.Notas)</td>
+                            <td style="text-align:right">$ @linea.PrecioUnitario.ToString("F2")</td>
+                            <td style="text-align:right"><strong>$ @linea.Subtotal.ToString("F2")</strong></td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" @onclick="() => QuitarLinea(idx)">✕</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="7" style="text-align:right;font-weight:700;padding:10px 12px">TOTAL USD</td>
+                        <td style="text-align:right;font-size:18px;font-weight:700">$ @Total.ToString("F2")</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted" style="padding:2rem;text-align:center">Agregá productos a la ficha</p>
+        }
+    </div>
+</div>
+
+<div class="acciones" style="justify-content:flex-end;margin-top:1rem">
+    <button class="btn" @onclick="Volver">Cancelar</button>
+    <button class="btn btn-primary" @onclick="Guardar"
+            disabled="@(ClienteId == 0 || !Lineas.Any() || Guardando)">
+        @(Guardando ? "Guardando..." : "Guardar presupuesto")
+    </button>
+</div>
+
+@code {
+    List<Cliente> ListaClientes = [];
+    List<Producto> ListaProductos = [];
+    List<LineaPreview> Lineas = [];
+    List<VarianteSeleccion> VariantesLinea = [];
+
+    int ClienteId = 0;
+    string Observaciones = "";
+
+    int LineaProductoId = 0;
+    decimal LineaAncho = 0;
+    decimal LineaAlto = 0;
+    int LineaCantidad = 1;
+    string LineaNotas = "";
+
+    Producto? ProductoActual;
+    CalcularPrecioResponse? Preview;
+    bool Guardando = false;
+
+    decimal Total => Lineas.Sum(l => l.Subtotal);
+
+    protected override async Task OnInitializedAsync()
+    {
+        ListaClientes = await Api.GetClientesAsync();
+        ListaProductos = await Api.GetProductosAsync();
+    }
+
+    void Volver() => Nav.NavigateTo("/ventas");
+
+    async Task OnProductoSeleccionado(Producto? p)
+    {
+        ProductoActual = p;
+        LineaProductoId = p?.Id ?? 0;
+        VariantesLinea.Clear();
+        Preview = null;
+        LineaAncho = 0;
+        LineaAlto = 0;
+        LineaCantidad = 1;
+
+        if (p is not null)
+        {
+            foreach (var v in p.Variantes)
+                VariantesLinea.Add(new VarianteSeleccion
+                {
+                    Tipo = v.Tipo,
+                    Opciones = v.Opciones,
+                    Seleccion = ""
+                });
+
+            if (!p.TieneMedidas)
+                await RecalcularAsync();
+        }
+    }
+
+    async Task RecalcularAsync()
+    {
+        if (LineaProductoId == 0 || ProductoActual is null) { Preview = null; return; }
+
+        if (ProductoActual.TieneMedidas && (LineaAncho <= 0 || LineaAlto <= 0))
+        {
+            Preview = null;
+            return;
+        }
+
+        try
+        {
+            var variantes = VariantesLinea
+                .Where(v => !string.IsNullOrEmpty(v.Seleccion))
+                .ToDictionary(v => v.Tipo, v => v.Seleccion);
+
+            Preview = await Api.CalcularPrecioAsync(
+                new CalcularPrecioRequest(LineaProductoId, LineaAncho, LineaAlto, LineaCantidad, variantes));
+        }
+        catch
+        {
+            Preview = null;
+        }
+    }
+
+    void AgregarLinea()
+    {
+        if (Preview is null || ProductoActual is null) return;
+
+        Lineas.Add(new LineaPreview
+        {
+            ProductoId = LineaProductoId,
+            NombreProducto = ProductoActual.Nombre,
+            TieneMedidas = ProductoActual.TieneMedidas,
+            Ancho = LineaAncho,
+            Alto = LineaAlto,
+            Cantidad = LineaCantidad,
+            VarianteSeleccionada = VariantesLinea.ToDictionary(v => v.Tipo, v => v.Seleccion),
+            PrecioUnitario = Preview.PrecioUnitario,
+            PrecioCostoUnitario = Preview.PrecioCostoUnitario,
+            Subtotal = Preview.Subtotal,
+            SubtotalCosto = Preview.SubtotalCosto,
+            Notas = LineaNotas
+        });
+
+        LineaProductoId = 0;
+        LineaAncho = 0;
+        LineaAlto = 0;
+        LineaCantidad = 1;
+        LineaNotas = "";
+        VariantesLinea.Clear();
+        ProductoActual = null;
+        Preview = null;
+    }
+
+    void QuitarLinea(int idx) => Lineas.RemoveAt(idx);
+
+    async Task Guardar()
+    {
+        if (ClienteId == 0 || !Lineas.Any()) return;
+        Guardando = true;
+        try
+        {
+            var venta = await Api.CrearVentaAsync(new CrearVentaRequest(
+                ClienteId, Observaciones,
+                Lineas.Select(l => new CrearLineaRequest(
+                    l.ProductoId, l.Ancho, l.Alto, l.Cantidad,
+                    l.VarianteSeleccionada, l.Notas)).ToList()
+            ));
+            Nav.NavigateTo($"/ventas/{venta.Id}");
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+}

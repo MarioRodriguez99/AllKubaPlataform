@@ -1,0 +1,37 @@
+﻿@inject UpdateService UpdateSvc
+
+@if (Info is not null)
+{
+    <div class="update-banner">
+        <div class="update-content">
+            <span>🆕 Nueva versión disponible: <strong>v@Info.VersionNueva</strong></span>
+            <div class="update-actions">
+                <button class="btn btn-sm btn-primary" @onclick="Actualizar">
+                    Actualizar ahora
+                </button>
+                <button class="btn btn-sm" @onclick="Cerrar">
+                    Después
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    UpdateInfo? Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Chequear en background sin bloquear la UI
+        await Task.Delay(3000); // esperar 3 seg que cargue todo
+        Info = await UpdateSvc.ChequearActualizacionAsync();
+    }
+
+    void Actualizar()
+    {
+        if (Info is not null)
+            UpdateService.AbrirDescarga(Info.UrlDescarga);
+    }
+
+    void Cerrar() => Info = null;
+}
